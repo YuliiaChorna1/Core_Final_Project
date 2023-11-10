@@ -1,82 +1,107 @@
+#Зміни (Настя):
+    # теги зберігає в список, замість словнику
+    # файл для збереження змінено з .plk на  .bin  та тимчасово змынено назву на test_notes
+    # додано def __str__ для виводу нотаток
+    # змінено формат виводу на таблицю
+    # відкореговано def _parse_tags та додано def _parse_text з тим, 
+            # щоб теги не дублювалися в текст нотатки
+    # додано remove, edit
+
+
+import re
+from collections import UserList
 import pickle
-import os
 
 
-def add_note(command: str):
-    tags = []
-    body = ""
-    for word in command.split(" ")[1:]:
-        if word.startswith("#"):
-            tags.append(word)
-        else:
-            body += word + " "
-    note = [tags, body]
-    notes.append(note)
-    save_to_file()
+class Note:
+    def __init__(self, title: str, text:str)  -> None:
+        self._title = title
+        self._text = self._parse_text(text)
+        self._tags = []
+        self._parse_tags(text)
+
+    def __str__(self) -> str:
+        num = notes_list.index(note)+1
+        tags = ', '.join(tag for tag in note._tags)
+        
+        return ("{:<5} {:<20} {:<20} {:<50}".format(num, note.title, tags, note.text))
+
+    @property
+    def title(self):
+        return self._title
+
+    @property
+    def text(self):
+        return self._text
+
+    @property
+    def tags_dict(self):
+        return self._tags
+
+    def _parse_tags(self, text: str) -> None:
+        # Регулярний вираз для пошуку хештегів в тексті
+        pattern = r"#\w+"
+        tags = re.findall(pattern, text)
+
+        for tag in tags:
+            tag = tag[1:]  # Видаляємо символ "#" з тегу
+            self._tags.append(tag)
+
+    def _parse_text(self, text: str) -> str:
+        return " ".join(word for word in text.split() if not word.startswith("#")) 
+
+    @text.setter
+    def text(self, new_text: str) -> None:
+        self._text = new_text
+        self._parse_tags()
+
+class NotesList(UserList):
+    def __init__(self) -> None:
+        super().__init__()
+        self.filename = "notes.bin"  # Назва файлу для збереження нотаток
+
+        # Перевизначення методу append для автоматичного збереження при додаванні нотаток
+    def append(self, note: Note) -> None:
+        super().append(note)
+        self._save_notes_to_file()
 
 
-def load_from_file():
-    filename = "notes.bin"
-    with open (filename, "rb") as file:
-        notes = pickle.load(file)
-    return notes
+    def remove(self, num: int) -> None:
+        notes_list.pop(num-1)
+        self._save_notes_to_file()
 
 
-def print_notes(notes: list):
-    for note in notes:
-        num = notes.index(note)+1
-        tags = ', '.join(tag for tag in note[0])
-        body = note[1]
-        print("{:^5} {:<40} {:<60}".format(num, tags, body))
-
-
-def remove(num: int):
-    notes.pop(num-1)
-    save_to_file()
-
-
-def edit(num: int, text: str):
-    tags = []
-    body = ""
-    for word in text.split(" "):
-        if word.startswith("#"):
-            tags.append(word)
-        else:
-            body += word + " "
-    note = [tags, body]
-    notes[num-1] = note
-    save_to_file()
+    def edit(self, num: int, title: str, text: str):
     
+        note = Note(title, text)
+        notes_list[num-1] = note
+        self._save_notes_to_file()
 
-def save_to_file():
-    filename = "notes.bin"
-    with open (filename, "wb") as file:
-        pickle.dump(notes, file)
+        # Збереження нотаток у файл
+    def _save_notes_to_file(self)-> None:
+        with open(self.filename, 'wb') as file:
+            pickle.dump(self.data, file)
 
+        # Завантаження нотаток з файлу
+    def load_notes_from_file(self) -> None:
+        try:
+            with open(self.filename, 'rb') as file:
+                self.data = pickle.load(file)
+        except (FileNotFoundError, EOFError):
+            self.data = []
 
-# def main():
-#     while True:
-#         pass
+    # Код для збереження та завантаження нотаток
+notes_list = NotesList()
+notes_list.load_notes_from_file()
 
-notes = []
+# note1 = Note("Title 1", "Text of Note 1 #tag1 #tag2")
+# note2 = Note("Title 2", "Text of Note 2 #tag2 #tag3")
+# notes_list.append(note1)  # Автоматичне збереження при додаванні
+# notes_list.append(note2)
+# notes_list.remove(1)     # видалення нотатки за номером
+notes_list.edit(3, "Title 3", "Text of Note 3 #tag3 #tag4")
 
-
-if __name__ == "__main__":
-    # main()
-    stat = os.stat("notes.bin")
-    size = stat.st_size
-    if size > 0:
-        notes = load_from_file()
-    else:
-        notes = []
-
-
-    add_note("add #test_1 #test_2 test note 1 for first note in notebook")
-    # add_note("add #test_3 #test_4 some other note to test the work and design")
-    # add_note("add #test_5 #test_6 #test_7 i have no idea what to write here but i have to write something")
-    # add_note("add #test_5 #test_6 #test_7 i have no idea what to write here but i have to write something")
-
-    # remove(4)
-    # edit(2, "#test_3_1 #test_4_1 edited note ")
-
-    print_notes(notes)
+# Виведення нотаток
+print("{:^5} {:<20} {:<20} {:<50}".format("num", "title", "tags", "text"))
+for note in notes_list:
+    print(note)
